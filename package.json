@@ -1,0 +1,22 @@
+{
+  "name": "npmproxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "npmproxy": "./index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "http-mitm-proxy": "1.1.0",
+    "remove": "0.1.5",
+    "semver": "7.7.3",
+    "zustand": "^5.0.8"
+  }
+}

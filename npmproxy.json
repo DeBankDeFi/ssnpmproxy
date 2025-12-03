@@ -1,0 +1,6 @@
+{
+    "port": 40798,
+    "sslPath": "/var/folders/rs/w_d4vmzd1j30zdr_tyxjsvqw0000gn/T/npmproxy-c0f16174b4fe05c3",
+    "npmRegistry": "https://registry.npmjs.org/",
+    "daysThreshold": 15
+}
