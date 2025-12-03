@@ -1,23 +1,16 @@
 const semver = require("semver");
-
-function startProxy(port, sslCaPath, npmRegistry, daysThreshold) {
+const fs = require("fs");
+function startProxy(port, sslCaPath) {
     const Proxy = require("http-mitm-proxy").Proxy;
     // or using import/module (package.json -> "type": "module")
     // import { Proxy } from "http-mitm-proxy";
     const proxy = new Proxy();
-    const npmRegistryUrl = new URL(npmRegistry);
-    const npmRegistryHost = npmRegistryUrl.host;
 
     proxy.onError(function (ctx, err) {
         console.error("proxy error:", err);
     });
 
     proxy.onRequest(function (ctx, callback) {
-        // 1. 基本过滤：非 NPM 域名直接放行
-        if (ctx.clientToProxyRequest.headers.host !== npmRegistryHost) {
-            return callback();
-        }
-
         // 2. 过滤非 GET 请求或特殊路径
         if (
             ctx.clientToProxyRequest.method !== "GET" ||
@@ -34,7 +27,8 @@ function startProxy(port, sslCaPath, npmRegistry, daysThreshold) {
         ) {
             // 使用 gunzip 中间件自动解压响应流 (非常重要，否则 chunks 是乱码)
             ctx.use(Proxy.gunzip);
-
+            // 强制返回完整信息
+            ctx.proxyToServerRequestOptions.headers["accept"] = "application/json";
             // 【新增 Step 1】：拦截响应头阶段
             ctx.onResponse(function (ctx, callback) {
                 // 在 Header 发送给客户端之前，删除原来的长度和编码
@@ -61,10 +55,11 @@ function startProxy(port, sslCaPath, npmRegistry, daysThreshold) {
                 let fullBody = Buffer.concat(chunks).toString("utf8");
 
                 try {
-                    // 修改metadata
                     const metadata = JSON.parse(fullBody);
-
-                    metadataFilter(metadata);
+                    if (!metadata || typeof metadata !== "object" || metadata.name == null || metadata.versions == null || metadata.time == null || metadata["dist-tags"] == null) {
+                        return callback();
+                    }
+                    metadataFilter(metadata, daysThreshold);
 
                     fullBody = JSON.stringify(metadata);
                     const newBuffer = Buffer.from(fullBody);
@@ -89,7 +84,13 @@ function startProxy(port, sslCaPath, npmRegistry, daysThreshold) {
     });
 
     // console.log(`begin listening on ${port}`);
-    proxy.listen({ port: port, host: "127.0.0.1", sslCaDir: sslCaPath });
+    proxy.listen({ port: port, host: "127.0.0.1", sslCaDir: sslCaPath }, err => {
+        if (err) {
+            console.error("Failed to start proxy:", err);
+        } else {
+            console.log(`Proxy server is running on port ${port}`);
+        }
+    });
 }
 
 function stopProxy() {
@@ -165,7 +166,7 @@ function findDowngradedVersion(targetVersion, availableVersions, timemap) {
     return null;
 }
 
-function metadataFilter(metadata) {
+function metadataFilter(metadata, daysThreshold = 15) {
     // 在这里对 metadata 进行修改
 
     const latestVersion = metadata["dist-tags"] && metadata["dist-tags"].latest;
@@ -177,7 +178,8 @@ function metadataFilter(metadata) {
     const daysDelta = getTimeDeltaInDays(new Date(), latestPublishTime);
 
     // 最新版发布15天以上的, 不做处理
-    if (daysDelta >= deltaDaysThreshold) {
+    if (daysDelta >= daysThreshold) {
+        console.log(`${metadata.name} latest version ${latestVersion} published ${Math.floor(daysDelta)} days ago. No downgrade needed.`);
         return metadata;
     }
 
@@ -186,7 +188,7 @@ function metadataFilter(metadata) {
         (v) =>
             metadata.time[v] &&
             getTimeDeltaInDays(new Date(), new Date(metadata.time[v])) >=
-                deltaDaysThreshold
+                daysThreshold
     );
     const downgradedVersion = findDowngradedVersion(
         latestVersion,
@@ -214,6 +216,5 @@ module.exports = {
 
 const port = process.argv[2] || 8081;
 const sslPath = process.argv[3] || "./ssl";
-const npmRegistry = process.argv[4] || "https://registry.npmjs.org/";
-const deltaDaysThreshold = process.argv[5] || 15;
-startProxy(port, sslPath, npmRegistry, deltaDaysThreshold);
+const daysThreshold = process.argv[4] || 15;
+startProxy(port, sslPath, daysThreshold);

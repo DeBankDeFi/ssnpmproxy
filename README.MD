@@ -1,4 +1,4 @@
-# npmproxy
+# ssnpmproxy
 ## 应用场景
 NPM供应链攻击可以成功实施的根源是：
 
@@ -16,7 +16,7 @@ NPM供应链攻击可以成功实施的根源是：
 ## 初始化
 在NodeJS项目的根目录下执行如下命令，而后会在根目录生成 npmproxy.json 配置文件
 ```
-npx npmproxy init
+npx ssnpmproxy init
 ```
 
 配置文件中，需要注意的只有 daysThreshold 字段，它表达信任发布多少天以上的NPM包
@@ -24,22 +24,21 @@ npx npmproxy init
 {
     "port": 40798,
     "sslPath": "/var/folders/rs/w_d4vmzd1j30zdr_tyxjsvqw0000gn/T/npmproxy-c0f16174b4fe05c3",
-    "npmRegistry": "https://registry.npmjs.org/",
     "daysThreshold": 15
 }
 ```
 
 ## 安装 / 更新包
-使用 npm, yarn, pnpm 安装 / 更新NPM包时，在前面添加 npx npmproxy 前缀，如下示例
+使用 npm, yarn, pnpm 安装 / 更新NPM包时，在前面添加 npx ssnpmproxy 前缀，如下示例
 ```
-npx npmproxy yarn add ...
-npx npmproxy npm add ...
-npx npmproxy yarn upgrade
+npx ssnpmproxy yarn add ...
+npx ssnpmproxy npm add ...
+npx ssnpmproxy yarn upgrade
 ```
 
 如下是一个使用示例，在启用npmproxy安装zustand时，它对发布在15天内的包进行了降级
 ```
-npx npmproxy npm i zustand
+npx ssnpmproxy npm i zustand
 starting server for registry.npmjs.org
 https server started for registry.npmjs.org on 64057
 ⠇Downgrading zustand from 5.0.9 to 5.0.8

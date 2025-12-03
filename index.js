@@ -24,7 +24,6 @@ function initConfig() {
                 {
                     port: getRandomPort(),
                     sslPath: getRandomDir(),
-                    npmRegistry: "https://registry.npmjs.org/",
                     daysThreshold: 15,
                 },
                 null,
@@ -53,44 +52,56 @@ if (subcmd === "help") {
     console.log("Usage: node index.js [subcommand]");
 } else if (subcmd === "init") {
     initConfig();
+} else if (subcmd === "stop") {
+    // 寻找并终止代理服务器进程
+    const config = readConfig();
+    const port = config.port || 8081;
 } else if (["yarn", "npm", "pnpm"].includes(subcmd)) {
     const config = readConfig();
 
     const proxyPort = config.port || 8081;
+    const proxyLink = `http://127.0.0.1:${proxyPort}`;
     const sslCaPath = config.sslPath || getRandomDir();
-    const registry = config.npmRegistry || "https://registry.npmjs.org/";
     const daysThreshold = config.daysThreshold || 15;
 
+    // 设置环境变量, 信任自签名CA
+    const caFile = path.join(sslCaPath, "certs", "ca.pem");
+    let cmd,
+        cmdenv = {
+            GIT_SSL_CAINFO: caFile,
+            CURL_CA_BUNDLE: caFile,
+            REQUESTS_CA_BUNDLE: caFile,
+        };
+
     if (subcmd === "yarn") {
-        execSync("yarn cache clean", { stdio: "ignore" });
-        if (args.indexOf("--registry") === -1) {
-            args.push(`--registry=${registry}`);
-        } else {
-            const regIndex = args.indexOf("--registry");
-            args[regIndex + 1] = registry;
-        }
+        // execSync("yarn cache clean", { stdio: "ignore" });
+        cmd = args.join(" ");
+        cmdenv["http_proxy"] = proxyLink;
+        cmdenv["https_proxy"] = proxyLink;
+        try {
+            execSync(`yarn config set -H httpProxy ${proxyLink}`, {
+                stdio: "ignore",
+            });
+            execSync(`yarn config set -H httpsProxy ${proxyLink}`, {
+                stdio: "ignore",
+            });
+        } catch (e) {}
     } else if (subcmd === "npm") {
-        execSync("npm cache clean --force", { stdio: "ignore" });
-        if (args.indexOf("--registry") === -1) {
-            args.push(`--registry=${registry}`);
-        } else {
-            const regIndex = args.indexOf("--registry");
-            args[regIndex + 1] = registry;
-        }
+        // execSync("npm cache clean --force", { stdio: "ignore" });
+        args.push("--proxy");
+        args.push(proxyLink);
+        args.push("--https-proxy");
+        args.push(proxyLink);
+        cmd = args.join(" ");
     } else if (subcmd === "pnpm") {
         throw new Error("pnpm support not implemented yet.");
     }
 
-    const cmd = args.join(" ");
-    const cmdenv = {
-        NODE_EXTRA_CA_CERTS: path.join(sslCaPath, "certs", "ca.pem"),
-        HTTPS_PROXY: `http://127.0.0.1:${proxyPort}`,
-        HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
-    };
+    cmdenv["NODE_EXTRA_CA_CERTS"] = path.join(sslCaPath, "certs", "ca.pem");
 
     const child = fork(
         require.resolve("./proxy.js"),
-        [proxyPort, sslCaPath, registry, daysThreshold],
+        [proxyPort, sslCaPath, daysThreshold],
         {
             stdio: "inherit",
         }
@@ -100,6 +111,13 @@ if (subcmd === "help") {
 
     // 停止代理服务器
     child.kill();
+
+    if (subcmd === "yarn") {
+        try {
+            execSync(`yarn config unset -H httpProxy`, { stdio: "ignore" });
+            execSync(`yarn config unset -H httpsProxy`, { stdio: "ignore" });
+        } catch (e) {}
+    }
 } else {
     console.log("Unknown subcommand. Use 'help' for usage information.");
 }
