@@ -1,12 +1,12 @@
 # ssnpmproxy
 ## 应用场景
-NPM供应链攻击可以成功实施的根源是：
+NPM供应链攻击可以成功实施的原因是：
 
 包管理工具在更新NPM包时，总是会选用满足依赖约束条件的**最新版NPM**包，并且该行为还不支持更改
 
-只要不使用最新版NPM包，应该就能避开大多数供应链攻击，因为安全社区也会监测NPM仓库内的恶意NPM包，恶意NPM包的存活时间总归是短的
+只要不使用最新版NPM包，就能避开大多数供应链攻击，因为安全社区也会监测NPM仓库内的恶意NPM包，并上报给NPM仓库删除，恶意NPM包的存活时间是短的
 
-该命令可以强制 npm, yarn, pnpm(待支持中..) 等包管理器工具不要使用最新版NPM包
+该命令可以强制 npm, yarn, pnpm(待支持中..) 等包管理器使用次新版NPM包
 
 ## 工作流程
 1. 获取该包的最新版发布天数，若发布天数大于15天（可配置），则信任它
@@ -36,7 +36,7 @@ npx ssnpmproxy npm add ...
 npx ssnpmproxy yarn upgrade
 ```
 
-如下是一个使用示例，在启用npmproxy安装zustand时，它对发布在15天内的包进行了降级
+如下是一个使用示例，在启用npmproxy安装zustand时，它对发布在15天内的包进行了降级，例如将zustand降级到5.0.8
 ```
 npx ssnpmproxy npm i zustand
 starting server for registry.npmjs.org
