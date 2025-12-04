@@ -94,7 +94,13 @@ if (subcmd === "help") {
         args.push(proxyLink);
         cmd = args.join(" ");
     } else if (subcmd === "pnpm") {
-        throw new Error("pnpm support not implemented yet.");
+        try {
+            execSync("pnpm config set proxy " + proxyLink, { stdio: "ignore" });
+            execSync("pnpm config set https-proxy " + proxyLink, {
+                stdio: "ignore",
+            });
+        } catch (e) {}
+        cmd = args.join(" ");
     }
 
     cmdenv["NODE_EXTRA_CA_CERTS"] = path.join(sslCaPath, "certs", "ca.pem");
@@ -116,6 +122,11 @@ if (subcmd === "help") {
         try {
             execSync(`yarn config unset -H httpProxy`, { stdio: "ignore" });
             execSync(`yarn config unset -H httpsProxy`, { stdio: "ignore" });
+        } catch (e) {}
+    } else if (subcmd === "pnpm") {
+        try {
+            execSync("pnpm config delete proxy", { stdio: "ignore" });
+            execSync("pnpm config delete https-proxy", { stdio: "ignore" });
         } catch (e) {}
     }
 } else {
